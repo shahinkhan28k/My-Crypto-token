@@ -1,0 +1,8 @@
+{
+  "name": "Remix: TripToCoin",
+  "description": "Crypto Analytics \u0026 Community Platform with real-time market data, contract \u0026 IP address verification, points staking system, community discussions, and admin control.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
