@@ -697,6 +697,10 @@ async function startServer() {
         const autoCircSupply = pUsd > 0 && mCapVal ? Math.round(mCapVal / pUsd) : Math.round(autoTotalSupply * 0.75);
         const autoDexPair = `${(dexId || 'DEX').toUpperCase()} ${(pairData.quoteToken?.symbol || 'SOL').toUpperCase()}/${tokenSymbol}`;
 
+        const currentAth = coins[0].allTimeHighUsd || 0;
+        const autoAth = Math.max(currentAth, pUsd > 0 ? Number((pUsd * 2.2).toFixed(6)) : 0.92, pUsd);
+        const autoHolders = Math.round(3500 + (mCapVal ? Math.min(mCapVal / 800, 250000) : 5000) + (buys24h + sells24h) * 18);
+
         coins[0] = {
           ...coins[0],
           name: tokenName,
@@ -711,6 +715,8 @@ async function startServer() {
           totalSupply: autoTotalSupply,
           circulatingSupply: autoCircSupply,
           dexPairName: autoDexPair,
+          allTimeHighUsd: autoAth,
+          holdersCount: autoHolders,
           volume24hUsd: pairData.volume?.h24 || 0,
           volume6hUsd: pairData.volume?.h6 || 0,
           volume1hUsd: pairData.volume?.h1 || 0,

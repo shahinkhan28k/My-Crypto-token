@@ -187,4 +187,8 @@ export interface AdminConfig {
   totalSupplyOverride?: number;
   circulatingSupplyOverride?: number;
   dexPairNameOverride?: string;
+  athOverride?: number;
+  holdersOverride?: number;
+  adminUsername?: string;
+  adminPassword?: string;
 }

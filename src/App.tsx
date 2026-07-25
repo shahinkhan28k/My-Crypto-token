@@ -340,7 +340,7 @@ export default function App() {
         <CoinHeader coin={selectedCoin} lang={lang} />
 
         {/* Market Stats Grid */}
-        <MarketStatsGrid coin={selectedCoin} lang={lang} />
+        <MarketStatsGrid coin={selectedCoin} adminConfig={adminConfig} lang={lang} />
 
         {/* Interactive Price Chart (DexScreener Embed & VFX Area Chart) */}
         <PriceChart coin={selectedCoin} lang={lang} />

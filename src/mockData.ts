@@ -274,4 +274,6 @@ export const INITIAL_ADMIN_CONFIG: AdminConfig = {
   announcementBannerBn: '',
   allowComments: true,
   autoSyncDexScreener: true,
+  adminUsername: 'shahinkhan28r',
+  adminPassword: 'Shahin811',
 };

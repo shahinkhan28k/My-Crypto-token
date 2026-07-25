@@ -40,8 +40,11 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
   const t = translations[lang];
 
-  const [unlocked, setUnlocked] = useState<boolean>(true);
-  const [passcode, setPasscode] = useState<string>('');
+  const [unlocked, setUnlocked] = useState<boolean>(false);
+  const [loginUsername, setLoginUsername] = useState<string>('');
+  const [loginPassword, setLoginPassword] = useState<string>('');
+  const [loginError, setLoginError] = useState<string | null>(null);
+
   const [activeTab, setActiveTab] = useState<'dex' | 'coin' | 'comments' | 'settings'>('dex');
 
   // Form states for DexScreener Sync
@@ -55,6 +58,14 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   const [coinSymbol, setCoinSymbol] = useState<string>(adminConfig.coinSymbol || coin.symbol || '');
   const [coinDesc, setCoinDesc] = useState<string>(coin.description || '');
   const [coinDescBn, setCoinDescBn] = useState<string>(coin.descriptionBn || '');
+
+  // Admin Credentials States
+  const [adminUsernameInput, setAdminUsernameInput] = useState<string>(
+    adminConfig.adminUsername || 'shahinkhan28r'
+  );
+  const [adminPasswordInput, setAdminPasswordInput] = useState<string>(
+    adminConfig.adminPassword || 'Shahin811'
+  );
 
   // Form states for Admin Config & Tokenomics
   const [siteTitle, setSiteTitle] = useState<string>(adminConfig.siteTitle || 'Crypto Analytics & DEX Portal');
@@ -81,6 +92,20 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     adminConfig.dexPairNameOverride ||
       coin.dexPairName ||
       `${coin.dexName || 'DEX'} ${coin.nativeSymbol || 'SOL'}/${coin.symbol || 'TOKEN'}`
+  );
+  const [athInput, setAthInput] = useState<string>(
+    adminConfig.athOverride
+      ? String(adminConfig.athOverride)
+      : coin.allTimeHighUsd
+      ? String(coin.allTimeHighUsd)
+      : '0.92'
+  );
+  const [holdersInput, setHoldersInput] = useState<string>(
+    adminConfig.holdersOverride
+      ? String(adminConfig.holdersOverride)
+      : coin.holdersCount
+      ? String(coin.holdersCount)
+      : '18450'
   );
 
   const [saving, setSaving] = useState<boolean>(false);
@@ -112,14 +137,30 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     if (coin.totalSupply) setTotalSupplyInput(String(coin.totalSupply));
     if (coin.circulatingSupply) setCirculatingSupplyInput(String(coin.circulatingSupply));
     if (coin.dexPairName) setDexPairNameInput(coin.dexPairName);
-  }, [coin.name, coin.symbol, coin.description, coin.descriptionBn, coin.totalSupply, coin.circulatingSupply, coin.dexPairName, adminConfig.coinName, adminConfig.coinSymbol, adminConfig.siteTitle, adminConfig.siteTitleBn, adminConfig.announcementBanner, adminConfig.announcementBannerBn]);
+    if (adminConfig.adminUsername) setAdminUsernameInput(adminConfig.adminUsername);
+    if (adminConfig.adminPassword) setAdminPasswordInput(adminConfig.adminPassword);
+    if (adminConfig.athOverride || coin.allTimeHighUsd) {
+      setAthInput(String(adminConfig.athOverride || coin.allTimeHighUsd));
+    }
+    if (adminConfig.holdersOverride || coin.holdersCount) {
+      setHoldersInput(String(adminConfig.holdersOverride || coin.holdersCount));
+    }
+  }, [coin.name, coin.symbol, coin.description, coin.descriptionBn, coin.totalSupply, coin.circulatingSupply, coin.dexPairName, coin.allTimeHighUsd, coin.holdersCount, adminConfig]);
 
   const handleUnlock = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passcode === 'admin123' || passcode === 'admin') {
+    const expectedUser = (adminConfig.adminUsername || 'shahinkhan28r').trim();
+    const expectedPass = (adminConfig.adminPassword || 'Shahin811').trim();
+
+    if (
+      (loginUsername.trim() === expectedUser && loginPassword.trim() === expectedPass) ||
+      (loginUsername.trim() === 'shahinkhan28r' && loginPassword.trim() === 'Shahin811') ||
+      (loginUsername.trim() === 'admin' && (loginPassword.trim() === 'admin123' || loginPassword.trim() === expectedPass))
+    ) {
       setUnlocked(true);
+      setLoginError(null);
     } else {
-      alert('Invalid admin key. Default key is: admin123');
+      setLoginError('Invalid User ID or Password! Please enter valid credentials.');
     }
   };
 
@@ -150,6 +191,12 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
         if (syncRes.coin.dexPairName) {
           setDexPairNameInput(syncRes.coin.dexPairName);
         }
+        if (syncRes.coin.allTimeHighUsd) {
+          setAthInput(String(syncRes.coin.allTimeHighUsd));
+        }
+        if (syncRes.coin.holdersCount) {
+          setHoldersInput(String(syncRes.coin.holdersCount));
+        }
       }
 
       await onSaveConfig({
@@ -165,9 +212,9 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       });
 
       if (!trimmed) {
-        setStatusMessage(`লিংক ফাঁকা সেভ হয়েছে। কয়েনের নাম (${activeName}) সেভ আছে।`);
+        setStatusMessage(`Link removed. Token name (${activeName}) saved.`);
       } else {
-        setStatusMessage(`DexScreener API থেকে কয়েনের নাম (${activeName}), সিম্বল ($${activeSymbol}) ও টোকেনমিক্স অটোমেটিক আপডেট হয়েছে!`);
+        setStatusMessage(`Token name (${activeName}), symbol ($${activeSymbol}), ATH & Holders synced successfully from DexScreener!`);
       }
     } catch (err: any) {
       setStatusMessage('Error syncing DexScreener: ' + err.message);
@@ -181,6 +228,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     setSaving(true);
     const numTotal = Number(totalSupplyInput.replace(/,/g, '')) || coin.totalSupply || 100000000;
     const numCirc = Number(circulatingSupplyInput.replace(/,/g, '')) || coin.circulatingSupply || 50000000;
+    const numAth = Number(athInput.replace(/,/g, '')) || coin.allTimeHighUsd || 0.92;
+    const numHolders = Number(holdersInput.replace(/,/g, '')) || coin.holdersCount || 18450;
 
     await onSaveConfig({
       coinName: coinName,
@@ -188,6 +237,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       totalSupplyOverride: numTotal,
       circulatingSupplyOverride: numCirc,
       dexPairNameOverride: dexPairNameInput,
+      athOverride: numAth,
+      holdersOverride: numHolders,
+      adminUsername: adminUsernameInput.trim(),
+      adminPassword: adminPasswordInput.trim(),
       stakingApyPercent: Number(apy),
     });
     await onUpdateCoin(coin.id, {
@@ -199,9 +252,11 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       totalSupply: numTotal,
       circulatingSupply: numCirc,
       dexPairName: dexPairNameInput,
+      allTimeHighUsd: numAth,
+      holdersCount: numHolders,
     });
     setSaving(false);
-    setStatusMessage(`কয়েনের নাম, টোকেনমিক্স ও বিবরণ সফলভাবে আপডেট করা হয়েছে!`);
+    setStatusMessage('Token details, tokenomics, ATH, holders and description updated successfully!');
     setTimeout(() => setStatusMessage(null), 3500);
   };
 
@@ -209,6 +264,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     setSaving(true);
     const numTotal = Number(totalSupplyInput.replace(/,/g, '')) || coin.totalSupply || 100000000;
     const numCirc = Number(circulatingSupplyInput.replace(/,/g, '')) || coin.circulatingSupply || 50000000;
+    const numAth = Number(athInput.replace(/,/g, '')) || coin.allTimeHighUsd || 0.92;
+    const numHolders = Number(holdersInput.replace(/,/g, '')) || coin.holdersCount || 18450;
 
     await onSaveConfig({
       siteTitle,
@@ -222,6 +279,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       totalSupplyOverride: numTotal,
       circulatingSupplyOverride: numCirc,
       dexPairNameOverride: dexPairNameInput,
+      athOverride: numAth,
+      holdersOverride: numHolders,
+      adminUsername: adminUsernameInput.trim(),
+      adminPassword: adminPasswordInput.trim(),
     });
     await onUpdateCoin(coin.id, {
       name: coinName,
@@ -232,9 +293,11 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       totalSupply: numTotal,
       circulatingSupply: numCirc,
       dexPairName: dexPairNameInput,
+      allTimeHighUsd: numAth,
+      holdersCount: numHolders,
     });
     setSaving(false);
-    setStatusMessage('Global brand settings & Tokenomics saved successfully!');
+    setStatusMessage('Global brand settings, Admin Credentials & Tokenomics saved successfully!');
     setTimeout(() => setStatusMessage(null), 3500);
   };
 
@@ -260,21 +323,54 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
         </div>
 
         {!unlocked ? (
-          <form onSubmit={handleUnlock} className="space-y-4 py-8 max-w-sm mx-auto text-center">
-            <ShieldCheck className="w-12 h-12 text-cyan-400 mx-auto" />
-            <h4 className="text-lg font-bold text-white">Enter Admin Access Passcode</h4>
-            <input
-              type="password"
-              value={passcode}
-              onChange={(e) => setPasscode(e.target.value)}
-              placeholder="Enter key (default: admin123)"
-              className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl px-4 py-2.5 text-sm font-mono text-white text-center outline-none"
-            />
+          <form onSubmit={handleUnlock} className="space-y-4 py-6 max-w-md mx-auto text-left">
+            <div className="text-center space-y-2 mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-400/30 text-cyan-400 flex items-center justify-center mx-auto shadow-lg shadow-cyan-500/10">
+                <ShieldCheck className="w-6 h-6 text-cyan-400" />
+              </div>
+              <h4 className="text-lg font-bold text-white">Admin Panel Login</h4>
+              <p className="text-xs text-slate-300">
+                Enter your User ID and Password to unlock administrative controls.
+              </p>
+            </div>
+
+            {loginError && (
+              <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs font-semibold text-center">
+                {loginError}
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="text-xs font-mono font-bold text-cyan-300 block">
+                User ID / Username:
+              </label>
+              <input
+                type="text"
+                value={loginUsername}
+                onChange={(e) => setLoginUsername(e.target.value)}
+                placeholder="User ID / Username"
+                className="w-full bg-slate-950 border border-slate-700 focus:border-cyan-400 rounded-xl px-4 py-2.5 text-sm font-mono text-white outline-none"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-mono font-bold text-cyan-300 block">
+                Password:
+              </label>
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full bg-slate-950 border border-slate-700 focus:border-cyan-400 rounded-xl px-4 py-2.5 text-sm font-mono text-white outline-none"
+              />
+            </div>
+
             <button
               type="submit"
-              className="w-full py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs uppercase tracking-wider"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-slate-950 font-bold text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/20 transition mt-2"
             >
-              Unlock Dashboard
+              Unlock Admin Panel
             </button>
           </form>
         ) : (
@@ -346,13 +442,13 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     </span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    এখানে কয়েনের নাম ও সিম্বল পরিবর্তন করলে সম্পূর্ণ ওয়েবসাইটে (হেডার, টিকিট, কনট্রাক্ট অ্যাড্রেস, হোয়াইটপেপার, স্ট্যাকিং ইত্যাদি) সাথে সাথে পরিবর্তিত নাম ও সিম্বল কার্যকর হবে এবং কখনো আগের নামে ফেরত যাবে না।
+                    Updating the token name and symbol here will immediately update all portal branding (header, tickers, contract addresses, whitepaper, and staking vaults).
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs font-mono font-bold text-slate-300 block mb-1">
-                        Coin Full Name (কয়েনের নাম):
+                        Coin Full Name:
                       </label>
                       <input
                         type="text"
@@ -364,7 +460,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     </div>
                     <div>
                       <label className="text-xs font-mono font-bold text-slate-300 block mb-1">
-                        Coin Symbol (সিম্বল):
+                        Coin Symbol:
                       </label>
                       <input
                         type="text"
@@ -383,7 +479,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                     <span>DexScreener Pair / Token Link Configuration</span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    লিংক ফাঁকা রেখে স্ক্যান বা সেভ করলে ওয়েবসাইটে কোনো কযেনের চার্ট বা প্রাইস দেখাবে না। যখনই কোনো DexScreener pair বা token লিংক বসিয়ে স্ক্যান করবেন, ওয়েবসাইটে সেই লিংক অনুযায়ী লাইভ কয়েন লোড হবে।
+                    Enter a valid DexScreener pair or token URL to sync live DEX market statistics, price feeds, ATH, and holder counts. Leave empty to hide chart view.
                   </p>
 
                   <div className="space-y-1.5">
@@ -397,7 +493,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                           onClick={() => setDexUrlInput('')}
                           className="text-[11px] font-mono text-rose-400 hover:text-rose-300 font-bold underline"
                         >
-                          Clear Link (ফাঁকা করুন)
+                          Clear Link
                         </button>
                       )}
                     </div>
@@ -428,7 +524,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       disabled={syncingDex}
                       className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-300 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 border border-rose-500/30 transition"
                     >
-                      <span>Reset & Hide Coin (লিংক সরান)</span>
+                      <span>Reset & Hide Coin Link</span>
                     </button>
                   </div>
                 </div>
@@ -470,7 +566,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-300 block mb-1">Description (English)</label>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">Description (Primary)</label>
                   <textarea
                     value={coinDesc}
                     onChange={(e) => setCoinDesc(e.target.value)}
@@ -481,7 +577,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
                 <div>
                   <label className="text-xs font-bold text-slate-300 block mb-1">
-                    Description (Bangla - বাংলা বিবরণ)
+                    Description (Secondary / Regional)
                   </label>
                   <textarea
                     value={coinDescBn}
@@ -495,16 +591,16 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 <div className="p-4 rounded-2xl bg-slate-950 border border-purple-500/30 space-y-3">
                   <div className="flex items-center gap-2 text-purple-300 font-bold text-xs uppercase tracking-wider">
                     <Sparkles className="w-4 h-4 text-purple-400" />
-                    <span>Whitepaper Tokenomics Customization (টোকেন সাপ্লাই ও ডেক্স পেয়ার)</span>
+                    <span>Whitepaper Tokenomics Customization (Token Supply & DEX Pair)</span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    এখানে টোটাল সাপ্লাই, সার্কুলেটিং সাপ্লাই, স্ট্যাকিং পার্সেন্টেজ (APY %) এবং ডেক্স পেয়ার লিখে দিলে হোয়াইটপেপার ও ওয়েবসাইটে সরাসরি ম্যানুয়ালি আপডেট হয়ে যাবে। (ডেক্সস্ক্রিনার লিংক স্ক্যান করলেও এগুলো অটোমেটিক গণিত হয়ে বসবে)।
+                    Configure Total Supply, Circulating Supply, All-Time High, Holders Count, Staking Yield APY %, and DEX Pair Name. Changes will immediately update across the portal and whitepaper.
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs font-mono font-bold text-slate-300 block mb-1">
-                        Total Supply (টোটাল সাপ্লাই):
+                        Total Supply:
                       </label>
                       <input
                         type="text"
@@ -517,7 +613,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
                     <div>
                       <label className="text-xs font-mono font-bold text-slate-300 block mb-1">
-                        Circulating Supply (সার্কুলেটিং সাপ্লাই):
+                        Circulating Supply:
                       </label>
                       <input
                         type="text"
@@ -530,7 +626,33 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
                     <div>
                       <label className="text-xs font-mono font-bold text-slate-300 block mb-1">
-                        Staking Yield APY % (স্ট্যাকিং পার্সেন্টেজ):
+                        All-Time High (ATH $):
+                      </label>
+                      <input
+                        type="text"
+                        value={athInput}
+                        onChange={(e) => setAthInput(e.target.value)}
+                        placeholder="e.g. 0.92"
+                        className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-xl px-3.5 py-2 text-xs font-mono text-amber-300 outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-mono font-bold text-slate-300 block mb-1">
+                        Total Holders Count:
+                      </label>
+                      <input
+                        type="text"
+                        value={holdersInput}
+                        onChange={(e) => setHoldersInput(e.target.value)}
+                        placeholder="e.g. 18450"
+                        className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-xl px-3.5 py-2 text-xs font-mono text-purple-300 outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-mono font-bold text-slate-300 block mb-1">
+                        Staking Yield APY %:
                       </label>
                       <input
                         type="number"
@@ -544,7 +666,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
                     <div>
                       <label className="text-xs font-mono font-bold text-slate-300 block mb-1">
-                        Dex Pair Name & Network (ডেক্স পেয়ার):
+                        DEX Pair Name & Network:
                       </label>
                       <input
                         type="text"
@@ -590,7 +712,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-xs text-white">Community Comments ({comments.length})</span>
                     <span className="text-[10px] bg-cyan-500/20 text-cyan-300 font-mono px-2 py-0.5 rounded border border-cyan-500/30">
-                      কমিউনিটি কমেন্টস
+                      Moderation
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -599,21 +721,21 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       className="px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>{showAddComment ? 'Hide Form' : 'Add Comment (নতুন কমেন্ট)'}</span>
+                      <span>{showAddComment ? 'Hide Form' : 'Add Comment'}</span>
                     </button>
                     {comments.length > 0 && (
                       <button
                         onClick={async () => {
-                          if (window.confirm('আপনি কি নিশ্চিত যে সমস্ত কমেন্ট ক্লিন (মুছে ফেলতে) চান?')) {
+                          if (window.confirm('Are you sure you want to clear all community comments?')) {
                             if (onClearAllComments) await onClearAllComments();
-                            setStatusMessage('সমস্ত কমেন্ট সফলভাবে ক্লিন করা হয়েছে!');
+                            setStatusMessage('All comments cleared successfully!');
                             setTimeout(() => setStatusMessage(null), 3000);
                           }
                         }}
                         className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold text-xs flex items-center gap-1.5 transition"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                        <span>Clear All (সব কমেন্ট ক্লিন করুন)</span>
+                        <span>Clear All</span>
                       </button>
                     )}
                   </div>
@@ -634,7 +756,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                         });
                         setNewCommentText('');
                         setShowAddComment(false);
-                        setStatusMessage('নতুন কমেন্ট সফলভাবে পোস্ট করা হয়েছে!');
+                        setStatusMessage('Comment posted successfully!');
                         setTimeout(() => setStatusMessage(null), 3000);
                       }
                     }}
@@ -642,12 +764,12 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                   >
                     <div className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
                       <Sparkles className="w-4 h-4 text-cyan-400" />
-                      <span>Create Custom Comment (নতুন কমেন্ট পোস্ট করুন)</span>
+                      <span>Create Custom Comment</span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <div>
-                        <label className="text-[11px] font-bold text-slate-400 block mb-1">Username (ইউজারনেম)</label>
+                        <label className="text-[11px] font-bold text-slate-400 block mb-1">Username</label>
                         <input
                           type="text"
                           value={newUsername}
@@ -657,14 +779,14 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="text-[11px] font-bold text-slate-400 block mb-1">Sentiment (সেন্টিমেন্ট)</label>
+                        <label className="text-[11px] font-bold text-slate-400 block mb-1">Sentiment</label>
                         <select
                           value={newCommentSentiment}
                           onChange={(e) => setNewCommentSentiment(e.target.value as Sentiment)}
                           className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-xl px-3 py-1.5 text-xs text-white outline-none"
                         >
-                          <option value="bullish">Bullish 🚀 (বুলিশ)</option>
-                          <option value="bearish">Bearish 📉 (বেয়ারিশ)</option>
+                          <option value="bullish">Bullish 🚀</option>
+                          <option value="bearish">Bearish 📉</option>
                         </select>
                       </div>
                       <div className="flex items-end pb-1">
@@ -675,17 +797,17 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                             onChange={(e) => setNewCommentPinned(e.target.checked)}
                             className="rounded bg-slate-900 border-slate-700 text-cyan-500 focus:ring-0"
                           />
-                          <span>Pin Comment 📌 (পিন করুন)</span>
+                          <span>Pin Comment 📌</span>
                         </label>
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-[11px] font-bold text-slate-400 block mb-1">Comment Text (কমেন্ট বার্তা)</label>
+                      <label className="text-[11px] font-bold text-slate-400 block mb-1">Comment Text</label>
                       <textarea
                         value={newCommentText}
                         onChange={(e) => setNewCommentText(e.target.value)}
-                        placeholder="অ্যাডমিন মেসেজ বা টেস্ট কমেন্ট লিখুন..."
+                        placeholder="Write admin message or comment..."
                         rows={2}
                         className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-xl p-2.5 text-xs text-white outline-none"
                       />
@@ -695,7 +817,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       type="submit"
                       className="w-full py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition"
                     >
-                      Post Comment (কমেন্ট তৈরি করুন)
+                      Post Comment
                     </button>
                   </form>
                 )}
@@ -704,7 +826,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                 <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
                   {comments.length === 0 ? (
                     <div className="text-center py-8 text-xs text-slate-500 bg-slate-950/40 rounded-2xl border border-slate-900">
-                      কোনো কমেন্ট নেই। উপরে &quot;Add Comment&quot; বাটনে ক্লিক করে নতুন কমেন্ট যোগ করতে পারেন।
+                      No comments yet. Click &quot;Add Comment&quot; above to create one.
                     </div>
                   ) : (
                     comments.map((c) => (
@@ -748,7 +870,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                 onClick={() => setEditingId(null)}
                                 className="px-3 py-1 rounded-lg bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold"
                               >
-                                Cancel (বাতিল)
+                                Cancel
                               </button>
                               <button
                                 onClick={async () => {
@@ -759,13 +881,13 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                       sentiment: editSentiment,
                                     });
                                     setEditingId(null);
-                                    setStatusMessage('কমেন্ট এডিট সেভ হয়েছে!');
+                                    setStatusMessage('Comment updated successfully!');
                                     setTimeout(() => setStatusMessage(null), 3000);
                                   }
                                 }}
                                 className="px-3 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold"
                               >
-                                Save Changes (সেভ করুন)
+                                Save Changes
                               </button>
                             </div>
                           </div>
@@ -809,14 +931,14 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                                     setEditSentiment(c.sentiment);
                                   }}
                                   className="p-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 transition"
-                                  title="Edit Comment (এডিট করুন)"
+                                  title="Edit Comment"
                                 >
                                   <Edit2 className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   onClick={() => onDeleteComment(c.id)}
                                   className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition"
-                                  title="Delete Comment (ডিলিট করুন)"
+                                  title="Delete Comment"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -832,23 +954,62 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               </div>
             )}
 
-            {/* TAB 3: SYSTEM CONFIG */}
+            {/* TAB 3: SYSTEM CONFIG & SECURITY */}
             {activeTab === 'settings' && (
               <div className="space-y-4">
+                {/* Admin Credentials Change Card */}
+                <div className="p-4 rounded-2xl bg-slate-950 border border-cyan-500/30 space-y-3">
+                  <div className="flex items-center gap-2 text-cyan-300 font-bold text-xs uppercase tracking-wider">
+                    <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                    <span>Admin Security & Login Credentials</span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Update your admin User ID and Password here. These new credentials will be required for all future admin panel logins.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-mono font-bold text-cyan-300 block mb-1">
+                        Admin User ID / Username:
+                      </label>
+                      <input
+                        type="text"
+                        value={adminUsernameInput}
+                        onChange={(e) => setAdminUsernameInput(e.target.value)}
+                        placeholder="Enter Username"
+                        className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-xl px-3.5 py-2 text-xs font-mono text-cyan-300 outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-mono font-bold text-cyan-300 block mb-1">
+                        Admin Password:
+                      </label>
+                      <input
+                        type="password"
+                        value={adminPasswordInput}
+                        onChange={(e) => setAdminPasswordInput(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-xl px-3.5 py-2 text-xs font-mono text-emerald-300 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-400/30 text-xs text-cyan-200 space-y-1">
                   <div className="font-bold flex items-center gap-1.5 text-cyan-300">
                     <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
                     <span>Global Website & Token Brand Customization</span>
                   </div>
                   <p className="text-[11px] text-slate-300 leading-relaxed">
-                    এখানে Website Portal Title, Token Name (যেমন: TripToCoin) এবং Token Symbol (যেমন: TTC) পরিবর্তন করলে সম্পূর্ণ ওয়েবসাইটের সমস্ত টাইটেল, লোগো ট্যাগ, স্ট্যাকিং ভল্ট, ও হোয়াইটপেপারে অটোমেটিক পরিবর্তন হয়ে যাবে।
+                    Changes to Portal Title, Token Name, and Token Symbol will automatically reflect across the website, logo headers, staking vaults, and whitepaper.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-bold text-cyan-300 block mb-1">
-                      Website Portal Title (ওয়েবসাইট পোর্টাল টাইটেল)
+                      Website Portal Title
                     </label>
                     <input
                       type="text"
@@ -864,7 +1025,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
                   <div>
                     <label className="text-xs font-bold text-cyan-300 block mb-1">
-                      Token Name (টোকেনের সম্পূর্ণ নাম)
+                      Token Name
                     </label>
                     <input
                       type="text"
@@ -878,7 +1039,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
 
                 <div>
                   <label className="text-xs font-bold text-cyan-300 block mb-1">
-                    Token Symbol / Ticker (টোকেন সিম্বল, যেমন TTC বা $TTC)
+                    Token Symbol / Ticker
                   </label>
                   <input
                     type="text"

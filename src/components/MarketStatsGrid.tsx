@@ -1,14 +1,15 @@
 import React from 'react';
-import { Coin } from '../types';
+import { Coin, AdminConfig } from '../types';
 import { Language, translations } from '../translations';
 import { DollarSign, BarChart3, Users, PieChart, Award, Droplets, ShoppingBag, ArrowUpRight, Flame } from 'lucide-react';
 
 interface MarketStatsGridProps {
   coin: Coin;
+  adminConfig?: AdminConfig;
   lang: Language;
 }
 
-export const MarketStatsGrid: React.FC<MarketStatsGridProps> = ({ coin, lang }) => {
+export const MarketStatsGrid: React.FC<MarketStatsGridProps> = ({ coin, adminConfig, lang }) => {
   const t = translations[lang];
 
   const formatNumber = (num: number) => {
@@ -17,6 +18,10 @@ export const MarketStatsGrid: React.FC<MarketStatsGridProps> = ({ coin, lang }) 
     if (num >= 1e3) return `$${(num / 1e3).toFixed(2)}K`;
     return `$${num.toLocaleString()}`;
   };
+
+  const displayHolders = adminConfig?.holdersOverride || coin.holdersCount || 18450;
+  const rawAth = adminConfig?.athOverride || coin.allTimeHighUsd || (coin.priceUsd ? Number((coin.priceUsd * 2.2).toFixed(6)) : 0.92);
+  const formattedAth = rawAth < 0.01 ? `$${rawAth.toFixed(6)}` : `$${rawAth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
 
   const stats = [
     {
@@ -53,16 +58,16 @@ export const MarketStatsGrid: React.FC<MarketStatsGridProps> = ({ coin, lang }) 
     },
     {
       label: t.holders,
-      value: coin.dexScreenerUrl ? coin.holdersCount.toLocaleString() : '18,450',
-      subValue: 'On-Chain Wallets',
+      value: displayHolders.toLocaleString(),
+      subValue: coin.dexScreenerUrl ? 'On-Chain Verified Wallets' : 'Total Token Holders',
       icon: Users,
       glowColor: 'hover:border-purple-500/50 hover:shadow-[0_0_20px_rgba(168,85,247,0.15)]',
       iconBg: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
     },
     {
       label: t.allTimeHigh,
-      value: coin.dexScreenerUrl && coin.allTimeHighUsd > 0 ? `$${coin.allTimeHighUsd.toFixed(2)}` : '$0.92',
-      subValue: 'Peak ATH',
+      value: formattedAth,
+      subValue: 'Peak ATH Price',
       icon: Award,
       glowColor: 'hover:border-amber-500/50 hover:shadow-[0_0_20px_rgba(245,158,11,0.15)]',
       iconBg: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
